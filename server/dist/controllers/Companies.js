@@ -263,18 +263,210 @@ export const inviteUserByEmail = asyncHandler(async (req, res) => {
         return res.status(200).json({ message: "User added to company and notified" });
     }
     else {
-        // Send invite to sign up
+        // Generate 6-character token for non-existing users
+        const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+        // Add invite to company
+        company.invites.push({
+            email: email.toLowerCase(),
+            token,
+            invitedAt: new Date()
+        });
+        await company.save();
+        // Send invite to sign up with token
         const appUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-        const signupUrl = `${appUrl}/register?company=${company._id}&email=${encodeURIComponent(email)}`;
+        const signupUrl = `${appUrl}/register?company=${company._id}&email=${encodeURIComponent(email)}&token=${token}`;
         try {
             await sendMail({
                 to: email,
                 subject: `Invitation to join ${company.name} on ValTech HRBot`,
                 username: email.split('@')[0] || email,
-                message: `Hello [username],<br/>You were invited to join <strong>${company.name}</strong> on ValTech HRBot.<br/><br/>Create your account here:<br/><a href="${signupUrl}">${signupUrl}</a>`,
+                message: `Hello [username],<br/>You were invited to join <strong>${company.name}</strong> on ValTech HRBot.<br/><br/>Create your account here:<br/><a href="${signupUrl}">${signupUrl}</a><br/><br/>Or use this token to join: <strong>${token}</strong>`,
             });
         }
         catch { }
-        return res.status(200).json({ message: "Invitation email sent" });
+        return res.status(200).json({ message: "Invitation email sent with token" });
     }
+});
+// POST /api/companies/join-by-token
+export const joinCompanyByToken = asyncHandler(async (req, res) => {
+    const { token } = req.body || {};
+    const authUser = req.user;
+    if (!authUser)
+        return res.status(401).json({ message: "Unauthorized" });
+    if (!token)
+        return res.status(400).json({ message: "Token is required" });
+    // Find company with this token
+    const company = await Company.findOne({
+        "invites.token": token.toUpperCase()
+    });
+    if (!company)
+        return res.status(404).json({ message: "Invalid or expired token" });
+    // Check if user is already in the company
+    const isAlreadyMember = company.users.some((u) => String(u) === String(authUser.id));
+    if (isAlreadyMember) {
+        return res.status(400).json({ message: "You are already a member of this company" });
+    }
+    // Add user to company
+    company.users.push(authUser.id);
+    // Remove the used invite
+    company.invites = company.invites.filter(invite => invite.token !== token.toUpperCase());
+    await company.save();
+    // Add company to user's companies
+    const user = await User.findById(authUser.id);
+    if (user) {
+        user.companies.push(company._id);
+        // Set default role for the new user (read only)
+        const defaultRole = {
+            company: company._id,
+            read: 1,
+            create: 0,
+            update: 0,
+            delete: 0
+        };
+        // Remove any existing role for this company and add default role
+        user.role = user.role.filter((r) => String(r.company) !== String(company._id));
+        user.role.push(defaultRole);
+        await user.save();
+    }
+    return res.status(200).json({
+        message: "Successfully joined company",
+        company: {
+            _id: company._id,
+            name: company.name,
+            description: company.description
+        }
+    });
+});
+// DELETE /api/companies/:companyId/members/:userId
+export const removeMemberFromCompany = asyncHandler(async (req, res) => {
+    const { companyId, userId } = req.params;
+    const authUser = req.user;
+    if (!authUser)
+        return res.status(401).json({ message: "Unauthorized" });
+    if (!companyId || !userId)
+        return res.status(400).json({ message: "companyId and userId are required" });
+    const company = await Company.findById(companyId);
+    if (!company)
+        return res.status(404).json({ message: "Company not found" });
+    // Check if requesting user has delete permission (owner)
+    const requestingUser = await User.findById(authUser.id);
+    if (!requestingUser)
+        return res.status(404).json({ message: "User not found" });
+    const userRole = requestingUser.role.find((r) => String(r.company) === String(companyId));
+    if (!userRole || userRole.delete === 0) {
+        return res.status(403).json({ message: "Only company owners can remove members" });
+    }
+    // Prevent removing the last owner
+    const targetUser = await User.findById(userId);
+    if (!targetUser)
+        return res.status(404).json({ message: "User not found" });
+    const targetUserRole = targetUser.role.find((r) => String(r.company) === String(companyId));
+    if (targetUserRole && targetUserRole.delete === 1) {
+        // Check if this is the only owner
+        const owners = await User.find({
+            "role.company": companyId,
+            "role.delete": 1
+        });
+        if (owners.length <= 1) {
+            return res.status(400).json({ message: "Cannot remove the last owner of the company" });
+        }
+    }
+    // Remove user from company
+    company.users = company.users.filter((u) => String(u) !== String(userId));
+    await company.save();
+    // Remove company from user's companies and roles
+    targetUser.companies = targetUser.companies.filter((c) => String(c) !== String(companyId));
+    targetUser.role = targetUser.role.filter((r) => String(r.company) !== String(companyId));
+    await targetUser.save();
+    return res.status(200).json({ message: "Member removed from company" });
+});
+// PATCH /api/companies/:companyId/members/:userId/permissions
+export const updateMemberPermissions = asyncHandler(async (req, res) => {
+    const { companyId, userId } = req.params;
+    const { read, create, update, delete: deletePerm } = req.body || {};
+    const authUser = req.user;
+    if (!authUser)
+        return res.status(401).json({ message: "Unauthorized" });
+    if (!companyId || !userId)
+        return res.status(400).json({ message: "companyId and userId are required" });
+    const company = await Company.findById(companyId);
+    if (!company)
+        return res.status(404).json({ message: "Company not found" });
+    // Check if requesting user has delete permission (owner)
+    const requestingUser = await User.findById(authUser.id);
+    if (!requestingUser)
+        return res.status(404).json({ message: "User not found" });
+    const userRole = requestingUser.role.find((r) => String(r.company) === String(companyId));
+    if (!userRole || userRole.delete === 0) {
+        return res.status(403).json({ message: "Only company owners can update permissions" });
+    }
+    const targetUser = await User.findById(userId);
+    if (!targetUser)
+        return res.status(404).json({ message: "User not found" });
+    // Check if user is in the company
+    const isInCompany = company.users.some((u) => String(u) === String(userId));
+    if (!isInCompany) {
+        return res.status(400).json({ message: "User is not a member of this company" });
+    }
+    // Prevent removing delete permission from the last owner
+    if (deletePerm === 0) {
+        const owners = await User.find({
+            "role.company": companyId,
+            "role.delete": 1
+        });
+        if (owners.length <= 1 && targetUser.role.some((r) => String(r.company) === String(companyId) && r.delete === 1)) {
+            return res.status(400).json({ message: "Cannot remove owner permissions from the last owner" });
+        }
+    }
+    // Update user's role for this company
+    const newRole = {
+        company: companyId,
+        read: read !== undefined ? (read ? 1 : 0) : 1,
+        create: create !== undefined ? (create ? 1 : 0) : 0,
+        update: update !== undefined ? (update ? 1 : 0) : 0,
+        delete: deletePerm !== undefined ? (deletePerm ? 1 : 0) : 0
+    };
+    // Remove existing role and add new one
+    targetUser.role = targetUser.role.filter((r) => String(r.company) !== String(companyId));
+    targetUser.role.push(newRole);
+    await targetUser.save();
+    return res.status(200).json({
+        message: "Member permissions updated",
+        role: newRole
+    });
+});
+// GET /api/companies/:companyId/members
+export const getCompanyMembers = asyncHandler(async (req, res) => {
+    const { companyId } = req.params;
+    const authUser = req.user;
+    if (!authUser)
+        return res.status(401).json({ message: "Unauthorized" });
+    if (!companyId)
+        return res.status(400).json({ message: "companyId is required" });
+    const company = await Company.findById(companyId).populate({
+        path: "users",
+        select: "name email role"
+    });
+    if (!company)
+        return res.status(404).json({ message: "Company not found" });
+    // Check if user has read permission for this company
+    const requestingUser = await User.findById(authUser.id);
+    if (!requestingUser)
+        return res.status(404).json({ message: "User not found" });
+    const userRole = requestingUser.role.find((r) => String(r.company) === String(companyId));
+    if (!userRole || userRole.read === 0) {
+        return res.status(403).json({ message: "Insufficient permissions" });
+    }
+    const members = company.users.map((user) => ({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role.find((r) => String(r.company) === String(companyId)) || {
+            read: 0,
+            create: 0,
+            update: 0,
+            delete: 0
+        }
+    }));
+    return res.status(200).json({ members });
 });

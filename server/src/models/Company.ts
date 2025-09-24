@@ -6,6 +6,11 @@ export interface ICompany extends Document {
   description?: string;
   logo?: string;
   users: mongoose.Types.ObjectId[]; // reverse mapping
+  invites: Array<{
+    email: string;
+    token: string;
+    invitedAt: Date;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +21,11 @@ const CompanySchema = new Schema<ICompany>(
     description: { type: String },
     logo: { type: String },
     users: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    invites: [{
+      email: { type: String, required: true },
+      token: { type: String, required: true },
+      invitedAt: { type: Date, default: Date.now }
+    }],
   },
   { timestamps: true }
 );
