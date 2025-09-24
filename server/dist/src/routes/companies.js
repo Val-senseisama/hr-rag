@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Companies_js_1 = require("../controllers/Companies.js");
+const CreateContext_js_1 = require("../middleware/CreateContext.js");
+const router = (0, express_1.Router)();
+router.post("/companies", CreateContext_js_1.createContext, Companies_js_1.createCompany);
+router.post("/companies/:companyId/users/:userId", CreateContext_js_1.createContext, Companies_js_1.addUserToCompany);
+router.delete("/companies/:companyId/users/:userId", CreateContext_js_1.createContext, Companies_js_1.removeUserFromCompany);
+router.get("/users/:userId/companies", CreateContext_js_1.createContext, Companies_js_1.getUserCompanies);
+router.delete("/companies/:companyId", CreateContext_js_1.createContext, Companies_js_1.deleteCompany);
+exports.default = router;

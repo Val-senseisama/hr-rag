@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const Documents_js_1 = require("../controllers/Documents.js");
+const CreateContext_js_1 = require("../middleware/CreateContext.js");
+const router = (0, express_1.Router)();
+router.post("/documents", CreateContext_js_1.createContext, Documents_js_1.createDocument);
+router.get("/companies/:companyId/documents", CreateContext_js_1.createContext, Documents_js_1.listCompanyDocuments);
+router.patch("/documents/:id", CreateContext_js_1.createContext, Documents_js_1.updateDocument);
+router.delete("/documents/:id", CreateContext_js_1.createContext, Documents_js_1.deleteDocument);
+router.get("/documents/:id/file", CreateContext_js_1.createContext, Documents_js_1.downloadDocumentFile);
+exports.default = router;

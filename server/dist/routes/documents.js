@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { createDocument, listCompanyDocuments, updateDocument, deleteDocument, downloadDocumentFile } from "../controllers/Documents.js";
+import { createContext } from "../middleware/CreateContext.js";
+const router = Router();
+router.post("/documents", createContext, createDocument);
+router.get("/companies/:companyId/documents", createContext, listCompanyDocuments);
+router.patch("/documents/:id", createContext, updateDocument);
+router.delete("/documents/:id", createContext, deleteDocument);
+router.get("/documents/:id/file", createContext, downloadDocumentFile);
+export default router;
