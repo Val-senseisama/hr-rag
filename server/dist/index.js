@@ -9,11 +9,11 @@ import { CONFIG } from "./config/CONFIG.js";
 import cors from "cors";
 dotenv.config();
 const app = express();
-app.use(express.json());
 app.use(cors({
-    origin: ["http://localhost:5173", "https://hr-rag.vercel.app/"],
+    origin: ["http://localhost:5173", "https://hr-rag.vercel.app"],
     credentials: true,
 }));
+app.use(express.json());
 app.use("/api", usersRouter);
 app.use("/api", companiesRouter);
 app.use("/api", documentsRouter);
