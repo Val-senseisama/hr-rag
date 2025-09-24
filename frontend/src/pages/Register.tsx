@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import Session from "../helpers/Session";
 
@@ -11,7 +11,27 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Handle URL parameters for company invitation
+  useEffect(() => {
+    const emailParam = searchParams.get('email');
+    const companyParam = searchParams.get('company');
+    const tokenParam = searchParams.get('token');
+    
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+    
+    // Store company and token in session for after registration
+    if (companyParam) {
+      Session.set('pending_company', companyParam);
+    }
+    if (tokenParam) {
+      Session.set('pending_token', tokenParam);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +49,22 @@ export default function Register() {
     try {
       await api.register(name, email, password);
       Session.showAlert({ str: "Account created successfully! Welcome to ValTech HRBot!", type: "success" });
-      navigate("/documents");
+      
+      // Check if there's a pending company token to join
+      const pendingToken = Session.get('pending_token');
+      if (pendingToken) {
+        try {
+          await api.joinCompanyByToken(pendingToken);
+          Session.showAlert({ str: "Successfully joined the company!", type: "success" });
+          Session.remove('pending_token');
+          Session.remove('pending_company');
+        } catch (joinError) {
+          console.error("Failed to join company:", joinError);
+          Session.showAlert({ str: "Account created but failed to join company. You can join manually later.", type: "warning" });
+        }
+      }
+      
+      navigate("/companies");
     } catch (e) {
       setError("Registration failed. Email may already be in use.");
       Session.showAlert({ str: "Registration failed. Email may already be in use.", type: "error" });
@@ -38,11 +73,23 @@ export default function Register() {
     }
   };
 
+  const isInvited = searchParams.get('token') && searchParams.get('company');
+
   return (
     <div className="flex items-center justify-center min-h-[70vh]">
       <div className="w-full max-w-md bg-neutral-900 rounded-lg p-6 shadow-2xl shadow-zinc-400/30">
         <h1 className="text-2xl font-semibold text-zinc-200 mb-1">Create Account</h1>
-        <p className="text-sm text-zinc-400 mb-6">Join ValTech HRBot workspace</p>
+        <p className="text-sm text-zinc-400 mb-6">
+          {isInvited ? "You've been invited to join a company on ValTech HRBot" : "Join ValTech HRBot workspace"}
+        </p>
+        {isInvited && (
+          <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+            <p className="text-sm text-blue-300">
+              <i className="fa-solid fa-envelope mr-2"></i>
+              You're joining via invitation. After registration, you'll automatically be added to the company.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">

@@ -84,6 +84,29 @@ export const api = {
     if (!res.ok) throw new Error('Reset failed');
     return res.json();
   },
+  async joinCompanyByToken(token: string) {
+    const res = await request(`${baseUrl}/api/companies/join-by-token`, { method: 'POST', body: JSON.stringify({ token }) });
+    if (!res.ok) throw new Error('Failed to join company');
+    return res.json();
+  },
+  async getCompanyMembers(companyId: string) {
+    const res = await request(`${baseUrl}/api/companies/${companyId}/members`);
+    if (!res.ok) throw new Error('Failed to fetch members');
+    return res.json();
+  },
+  async removeMemberFromCompany(companyId: string, userId: string) {
+    const res = await request(`${baseUrl}/api/companies/${companyId}/members/${userId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to remove member');
+    return res.json();
+  },
+  async updateMemberPermissions(companyId: string, userId: string, permissions: { read?: boolean; create?: boolean; update?: boolean; delete?: boolean }) {
+    const res = await request(`${baseUrl}/api/companies/${companyId}/members/${userId}/permissions`, { 
+      method: 'PATCH', 
+      body: JSON.stringify(permissions) 
+    });
+    if (!res.ok) throw new Error('Failed to update permissions');
+    return res.json();
+  },
   getTokens,
   setTokens,
   clearTokens,
