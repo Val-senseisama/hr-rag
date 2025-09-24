@@ -24,7 +24,7 @@ export default function Profile() {
     password: "",
     confirmPassword: "",
   });
-  const { user: authUser, logout } = useAuth();
+  const {  logout } = useAuth();
 
   useEffect(() => {
     fetchUser();

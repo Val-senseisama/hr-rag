@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "../components/ui/button";
-import { useAuth } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import Session from "../helpers/Session";
