@@ -49,7 +49,7 @@ export default function Companies() {
   const [managingMembers, setManagingMembers] = useState<Company | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [joinToken, setJoinToken] = useState("");
+  const [joinToken, setJoinToken] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const { user } = useAuth();
 
@@ -255,7 +255,7 @@ export default function Companies() {
   };
 
   const handleJoinByToken = async () => {
-    if (!joinToken.trim()) {
+    if (!joinToken || !joinToken.trim()) {
       Session.showAlert({ str: "Please enter a token", type: "error" });
       return;
     }
@@ -264,7 +264,7 @@ export default function Companies() {
     try {
       await api.joinCompanyByToken(joinToken.trim());
       Session.showAlert({ str: "Successfully joined company!", type: "success" });
-      setJoinToken("");
+      setJoinToken(null);
       await fetchCompanies();
     } catch (error) {
       console.error("Error joining company:", error);
@@ -280,7 +280,7 @@ export default function Companies() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-zinc-200">Companies</h1>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>
@@ -311,7 +311,7 @@ export default function Companies() {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setJoinToken("")}>
+          <Button variant="outline" onClick={() => setJoinToken("")}> 
             <i className="fa-solid fa-key mr-2"></i> Join by Token
           </Button>
           <Button onClick={() => setCreateModalOpen(true)}>
@@ -330,7 +330,7 @@ export default function Companies() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             {companies.map((company) => (
               <Card key={company._id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
@@ -401,14 +401,20 @@ export default function Companies() {
                           <i className="fa-solid fa-user-plus mr-2" aria-hidden="true"></i>
                           Invite
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleManageMembers(company)}
-                        >
-                          <i className="fa-solid fa-users mr-2" aria-hidden="true"></i>
-                          Members
-                        </Button>
+                        {(() => {
+                          const me = company.members.find(m => m._id === (user?.id || ''));
+                          const isOwner = !!me && (me.role?.[0]?.delete || 0) > 0;
+                          return isOwner ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleManageMembers(company)}
+                            >
+                              <i className="fa-solid fa-users mr-2" aria-hidden="true"></i>
+                              Members
+                            </Button>
+                          ) : null;
+                        })()}
                       </div>
                       {/* <span className="text-xs text-zinc-500">
                         Updated {formatDate(company.updatedAt)}
@@ -617,7 +623,7 @@ export default function Companies() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div 
             className="fixed inset-0 bg-black/50" 
-            onClick={() => setJoinToken("")}
+            onClick={() => setJoinToken(null)}
           />
           <div className="relative z-50 w-full max-w-md rounded-lg border border-neutral-800 bg-neutral-900 p-6 shadow-2xl shadow-zinc-400/30">
             <h2 className="text-xl font-semibold text-zinc-200 mb-4">Join Company by Token</h2>
@@ -627,7 +633,7 @@ export default function Companies() {
                 <label className="text-sm font-medium text-zinc-200">Token *</label>
                 <input
                   type="text"
-                  value={joinToken}
+                  value={joinToken ?? ""}
                   onChange={(e) => setJoinToken(e.target.value.toUpperCase())}
                   placeholder="Enter 6-character token"
                   maxLength={6}
@@ -641,12 +647,12 @@ export default function Companies() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setJoinToken("")}
+                  onClick={() => setJoinToken(null)}
                   disabled={joining}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={joining || !joinToken.trim()}>
+                <Button type="submit" disabled={joining || !joinToken?.trim()}>
                   {joining ? "Joining..." : "Join Company"}
                 </Button>
               </div>
@@ -733,8 +739,11 @@ export default function Companies() {
                             size="sm"
                             onClick={() => handleRemoveMember(managingMembers._id, member._id)}
                             className="text-red-400 hover:text-red-300"
+                            title="Remove member"
+                            aria-label="Remove member"
                           >
-                            <i className="fa-solid fa-trash"></i>
+                            <i className="fa-solid fa-user-minus mr-2"></i>
+                            Remove
                           </Button>
                         )}
                       </div>

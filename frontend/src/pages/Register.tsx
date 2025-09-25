@@ -9,6 +9,8 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
@@ -116,25 +118,45 @@ export default function Register() {
           </div>
           <div className="grid gap-2">
             <label className="text-sm text-zinc-400">Password</label>
-            <input
-              className="h-10 rounded-md border border-neutral-800 bg-neutral-800 px-3 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
+            <div className="relative">
+              <input
+                className="h-10 w-full rounded-md border border-neutral-800 bg-neutral-800 pl-3 pr-10 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-2 my-auto h-7 w-7 rounded hover:text-zinc-200 text-zinc-400"
+                aria-label="Toggle password visibility"
+              >
+                <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+              </button>
+            </div>
           </div>
           <div className="grid gap-2">
             <label className="text-sm text-zinc-400">Confirm Password</label>
-            <input
-              className="h-10 rounded-md border border-neutral-800 bg-neutral-800 px-3 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
+            <div className="relative">
+              <input
+                className="h-10 w-full rounded-md border border-neutral-800 bg-neutral-800 pl-3 pr-10 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                type={showConfirm ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                className="absolute inset-y-0 right-2 my-auto h-7 w-7 rounded hover:text-zinc-200 text-zinc-400"
+                aria-label="Toggle confirm password visibility"
+              >
+                <i className={`fa-solid ${showConfirm ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+              </button>
+            </div>
           </div>
           {error && <div className="text-red-400 text-sm">{error}</div>}
           <Button
