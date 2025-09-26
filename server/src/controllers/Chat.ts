@@ -144,9 +144,46 @@ export const chat = asyncHandler(async (req: any, res: any) => {
   }
 
   // Convert to array and sort by max score
-  const scored = Array.from(allScores.values())
-    .sort((a, b) => b.maxScore - a.maxScore)
-    .slice(0, 3);
+  const allScored = Array.from(allScores.values())
+    .sort((a, b) => b.maxScore - a.maxScore);
+
+  // Log similarity scores for debugging
+  console.log('Top similarity scores:', allScored.slice(0, 10).map(s => ({ 
+    title: s.doc.title, 
+    score: s.maxScore.toFixed(3),
+    hasEmbedding: !!s.doc.embedding?.length
+  })));
+
+  // Apply similarity threshold (adjust based on your embedding model performance)
+  const SIMILARITY_THRESHOLD = 0.3; // Lower threshold for weaker embeddings
+  const filteredScored = allScored.filter(s => s.maxScore >= SIMILARITY_THRESHOLD);
+  
+  console.log(`Filtered ${allScored.length} docs to ${filteredScored.length} above threshold ${SIMILARITY_THRESHOLD}`);
+
+  // Take top 10 for reranking, then select best 3
+  const topK = 10;
+  const rerankCandidates = filteredScored.length > 0 ? filteredScored : allScored;
+  const topCandidates = rerankCandidates.slice(0, topK);
+  
+  // Rerank using combined scoring: similarity + keyword match + recency
+  const reranked = topCandidates.map(({ doc, maxScore }) => {
+    const keywordBoost = keywordScore(message, doc.title || '', doc.content || '');
+    const recencyBoost = Math.max(0, 1 - (Date.now() - new Date(doc.updatedAt).getTime()) / (30 * 24 * 60 * 60 * 1000)); // 30 days
+    const combinedScore = maxScore * 0.7 + keywordBoost * 0.2 + recencyBoost * 0.1;
+    
+    return { doc, score: combinedScore, originalScore: maxScore, keywordBoost, recencyBoost };
+  }).sort((a, b) => b.score - a.score);
+
+  console.log('Reranked scores:', reranked.slice(0, 5).map(r => ({
+    title: r.doc.title,
+    combined: r.score.toFixed(3),
+    original: r.originalScore.toFixed(3),
+    keyword: r.keywordBoost.toFixed(3),
+    recency: r.recencyBoost.toFixed(3)
+  })));
+
+  // Final selection: top 3 after reranking
+  const scored = reranked.slice(0, 3);
 
   // Build a RAG prompt
   const contextBlocks = scored.map(({ doc }) => {
