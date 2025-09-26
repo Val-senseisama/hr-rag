@@ -37,10 +37,16 @@ export default function Documents() {
 
   useEffect(() => {
     if (user?.id) {
+      // Prefer company from URL, then Session, then fallback after fetching companies
+      const params = new URLSearchParams(window.location.search);
+      const urlCompany = params.get('company');
+      if (urlCompany && urlCompany.trim().length > 0) {
+        setSelectedCompany(urlCompany);
+      } else {
+        const cc = Session.get('current_company');
+        if (cc?.id) setSelectedCompany(cc.id);
+      }
       fetchCompanies();
-      // Preload current company from Session if available
-      const cc = Session.get('current_company');
-      if (cc?.id) setSelectedCompany(cc.id);
     }
   }, [user?.id]);
 
@@ -55,7 +61,8 @@ export default function Documents() {
       setLoading(true);
       const data = await api.listCompanies(user?.id || "", 1, 100);
       setCompanies(data.companies || []);
-      if (data.companies && data.companies.length > 0) {
+      // Only set a default if none is selected from URL/Session
+      if (!selectedCompany && data.companies && data.companies.length > 0) {
         setSelectedCompany(data.companies[0]._id);
       }
     } catch (error) {
@@ -130,7 +137,7 @@ export default function Documents() {
         </div>
         
         <div className="flex items-center gap-3 flex-wrap">
-          {companies.length > 1 && (
+          {/* {companies.length > 1 && (
             <select
               value={selectedCompany}
               onChange={(e) => setSelectedCompany(e.target.value)}
@@ -142,7 +149,7 @@ export default function Documents() {
                 </option>
               ))}
             </select>
-          )}
+          )} */}
           
           {selectedCompany && (
             <Button variant="outline" onClick={() => (window.location.href = `/chat?company=${selectedCompany}`)}>

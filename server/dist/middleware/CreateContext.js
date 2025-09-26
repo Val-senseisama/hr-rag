@@ -100,9 +100,25 @@ export const verifyRefreshJwt = async (token) => {
 export const createContext = async (req, res, next) => {
     const token = req.headers["x-access-token"] || undefined;
     const refreshToken = req.headers["x-refresh-token"] || undefined;
+    const forcedRefreshToken = req.headers["x-force-refresh"] || undefined;
     if (!token || !refreshToken) {
         console.log("Missing tokens:", { token: !!token, refreshToken: !!refreshToken });
         return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (forcedRefreshToken) {
+        const decoded = await verifyJwt(token);
+        const id = (decoded?.data).id;
+        const newToken = await setJwt(id);
+        const newRefreshToken = await setRefreshJwt(id);
+        // Attach new tokens to response headers so frontend can persist them
+        res.setHeader("x-access-token", String(newToken.data || ""));
+        res.setHeader("x-refresh-token", String(newRefreshToken.data || ""));
+        // Signal client to clear any force refresh flag
+        res.setHeader("x-force-refresh", "");
+        req.user = newToken.data;
+        req.refreshUser = newRefreshToken.data;
+        next();
+        return;
     }
     const decoded = await verifyJwt(token);
     const refreshDecoded = await verifyRefreshJwt(refreshToken);

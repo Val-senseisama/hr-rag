@@ -100,6 +100,36 @@ export default function Companies() {
         throw new Error("Failed to create company");
       }
 
+      // If backend requests a forced refresh, trigger it to get new tokens
+      const forceHeader = response.headers.get('x-force-refresh');
+      if (forceHeader && forceHeader.trim().length > 0) {
+        try {
+          const refreshResp = await fetch(`${import.meta.env.VITE_API_URL}/api/users/me`, {
+            method: 'GET',
+            headers: {
+              'x-access-token': Session.getCookie('x-access-token'),
+              'x-refresh-token': Session.getCookie('x-refresh-token'),
+              'x-force-refresh': forceHeader
+            },
+            credentials: 'include'
+          });
+          // Persist new tokens if provided
+          const newAccess = refreshResp.headers.get('x-access-token') || '';
+          const newRefresh = refreshResp.headers.get('x-refresh-token') || '';
+          if (newAccess) Session.setCookie('x-access-token', newAccess);
+          if (newRefresh) Session.setCookie('x-refresh-token', newRefresh);
+          // Optionally save user data if returned
+          try {
+            const me = await refreshResp.json().catch(() => null);
+            if (me && me.user) {
+              Session.set('user', me.user);
+            }
+          } catch {}
+        } catch (e) {
+          console.warn('Forced refresh failed', e);
+        }
+      }
+
       Session.showAlert({ str: "Company created successfully!", type: "success" });
       setNewCompanyName("");
       setNewCompanyDescription("");
@@ -123,6 +153,11 @@ export default function Companies() {
   const handleSelectCompany = (company: Company) => {
     try { Session.set('current_company', { id: company._id, name: company.name }) } catch {}
     window.location.href = `/chat?company=${company._id}`
+  }
+
+  const handleOpenDocuments = (company: Company) => {
+    try { Session.set('current_company', { id: company._id, name: company.name }) } catch {}
+    window.location.href = `/documents?company=${company._id}`
   }
 
   const handleUpdateCompany = async (e: React.FormEvent) => {
@@ -332,7 +367,7 @@ export default function Companies() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             {companies.map((company) => (
-              <Card key={company._id} className="hover:shadow-lg transition-shadow">
+              <Card key={company._id} className="hover:shadow-lg transition-shadow h-full flex flex-col">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -366,7 +401,7 @@ export default function Companies() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex flex-col h-full">
                   <div className="space-y-3">
                     {company.description && (
                       <p className="text-zinc-300 text-sm leading-relaxed">
@@ -383,8 +418,10 @@ export default function Companies() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex space-x-2">
+                    <div className="flex-1" />
+
+                    <div className="flex items-center justify-between pt-2 mt-auto">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -393,6 +430,20 @@ export default function Companies() {
                           <i className="fa-solid fa-comments mr-2" aria-hidden="true"></i>
                           Open Chat
                         </Button>
+                        {(() => {
+                          const me = company.members.find(m => m._id === (user?.id || ''));
+                          const canRead = !!me && (me.role?.[0]?.read || 0) > 0;
+                          return canRead ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenDocuments(company)}
+                            >
+                              <i className="fa-solid fa-file-lines mr-2" aria-hidden="true"></i>
+                              Documents
+                            </Button>
+                          ) : null;
+                        })()}
                         <Button
                           variant="outline"
                           size="sm"

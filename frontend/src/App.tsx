@@ -49,7 +49,7 @@ export default function App() {
             const u = Session.get('user');
             const role = u?.role?.find((r: any) => String(r.company) === String(current.id));
             const canRead = !!role && Number(role.read) > 0;
-            return canRead ? <Link to="/documents" className="nav-link">Documents</Link> : null;
+            return canRead && currentPath !== '/companies' ? <Link to="/documents" className="nav-link">Documents</Link> : null;
           })()}
           {currentPath !== '/companies' && (
             <Link to="/companies" className="nav-link">Companies</Link>

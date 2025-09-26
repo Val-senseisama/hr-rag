@@ -35,6 +35,9 @@ export const createCompany = asyncHandler(async (req, res) => {
         user.role.push(adminRole);
         await user.save();
     }
+    // After creating company and assigning owner role, instruct client to refresh JWT
+    // so the new role is reflected in access/refresh tokens
+    res.setHeader("x-force-refresh", (Math.random().toString(36).substring(2, 18)));
     return res.status(201).json({
         message: "Company created",
         company: {
