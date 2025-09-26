@@ -21,9 +21,38 @@ function keywordScore(query: string, title: string, content: string): number {
   const q = tokenize(query);
   const text = tokenize(`${title} ${content}`);
   if (!q.length || !text.length) return 0;
+  
+  // Create frequency map
   const freq: Record<string, number> = {};
   for (const t of text) freq[t] = (freq[t] || 0) + 1;
-  return q.reduce((acc, term) => acc + (freq[term] || 0), 0);
+  
+  // Add semantic keyword mappings for better matching
+  const semanticMappings: Record<string, string[]> = {
+    'work': ['work', 'working', 'job', 'employment', 'employee'],
+    'home': ['home', 'remote', 'telecommute', 'telework'],
+    'remote': ['remote', 'home', 'telecommute', 'telework', 'distance'],
+    'allowed': ['allowed', 'permitted', 'eligible', 'can', 'may'],
+    'often': ['often', 'frequently', 'frequency', 'times', 'days'],
+    'from': ['from', 'at', 'in'],
+    'so': ['so', 'if', 'when', 'then'],
+    'how': ['how', 'what', 'when', 'where'],
+    'am': ['am', 'is', 'are', 'can', 'may'],
+    'i': ['i', 'you', 'employee', 'staff']
+  };
+  
+  let score = 0;
+  for (const term of q) {
+    // Direct match
+    score += (freq[term] || 0) * 2;
+    
+    // Semantic matches
+    const synonyms = semanticMappings[term] || [];
+    for (const synonym of synonyms) {
+      score += (freq[synonym] || 0) * 1.5;
+    }
+  }
+  
+  return score;
 }
 
 function extractSnippets(query: string, title: string, content: string, maxSnippets = 2): string[] {
@@ -169,9 +198,18 @@ export const chat = asyncHandler(async (req: any, res: any) => {
   const reranked = topCandidates.map(({ doc, maxScore }) => {
     const keywordBoost = keywordScore(message, doc.title || '', doc.content || '');
     const recencyBoost = Math.max(0, 1 - (Date.now() - new Date(doc.updatedAt).getTime()) / (30 * 24 * 60 * 60 * 1000)); // 30 days
-    const combinedScore = maxScore * 0.7 + keywordBoost * 0.2 + recencyBoost * 0.1;
     
-    return { doc, score: combinedScore, originalScore: maxScore, keywordBoost, recencyBoost };
+    // Normalize keyword score to 0-1 range (assuming max possible is around 50)
+    const normalizedKeyword = Math.min(keywordBoost / 50, 1);
+    
+    // Give more weight to similarity when it's decent, but boost with keywords when similarity is low
+    const similarityWeight = maxScore > 0.2 ? 0.6 : 0.3;
+    const keywordWeight = maxScore > 0.2 ? 0.3 : 0.6;
+    const recencyWeight = 0.1;
+    
+    const combinedScore = maxScore * similarityWeight + normalizedKeyword * keywordWeight + recencyBoost * recencyWeight;
+    
+    return { doc, score: combinedScore, originalScore: maxScore, keywordBoost, recencyBoost, normalizedKeyword };
   }).sort((a, b) => b.score - a.score);
 
   console.log('Reranked scores:', reranked.slice(0, 5).map(r => ({
@@ -179,6 +217,7 @@ export const chat = asyncHandler(async (req: any, res: any) => {
     combined: r.score.toFixed(3),
     original: r.originalScore.toFixed(3),
     keyword: r.keywordBoost.toFixed(3),
+    normalizedKeyword: r.normalizedKeyword.toFixed(3),
     recency: r.recencyBoost.toFixed(3)
   })));
 
