@@ -40,17 +40,39 @@ function keywordScore(query, title, content) {
         'so': ['so', 'if', 'when', 'then'],
         'how': ['how', 'what', 'when', 'where'],
         'am': ['am', 'is', 'are', 'can', 'may'],
-        'i': ['i', 'you', 'employee', 'staff']
+        'i': ['i', 'you', 'employee', 'staff'],
+        'resign': ['resign', 'resigning', 'resignation', 'quit', 'leave', 'exit', 'departure'],
+        'notice': ['notice', 'notification', 'advance', 'warning', 'period'],
+        'give': ['give', 'provide', 'submit', 'deliver', 'send'],
+        'want': ['want', 'wish', 'desire', 'need', 'require'],
+        'much': ['much', 'many', 'long', 'duration', 'time', 'period'],
+        'need': ['need', 'require', 'must', 'should', 'have'],
+        'if': ['if', 'when', 'should', 'in', 'case'],
+        'do': ['do', 'does', 'did', 'will', 'can'],
+        'to': ['to', 'for', 'in', 'order']
     };
     let score = 0;
+    const matches = [];
     for (const term of q) {
         // Direct match
-        score += (freq[term] || 0) * 2;
+        const directMatch = freq[term] || 0;
+        if (directMatch > 0) {
+            score += directMatch * 2;
+            matches.push(`${term}(${directMatch})`);
+        }
         // Semantic matches
         const synonyms = semanticMappings[term] || [];
         for (const synonym of synonyms) {
-            score += (freq[synonym] || 0) * 1.5;
+            const synonymMatch = freq[synonym] || 0;
+            if (synonymMatch > 0) {
+                score += synonymMatch * 1.5;
+                matches.push(`${synonym}(${synonymMatch})`);
+            }
         }
+    }
+    // Debug logging for keyword matching
+    if (score > 0) {
+        console.log(`Keyword matches for "${query}":`, matches.join(', '), `Total score: ${score}`);
     }
     return score;
 }
@@ -178,7 +200,7 @@ export const chat = asyncHandler(async (req, res) => {
         hasEmbedding: !!s.doc.embedding?.length
     })));
     // Apply similarity threshold (adjust based on your embedding model performance)
-    const SIMILARITY_THRESHOLD = 0.3; // Lower threshold for weaker embeddings
+    const SIMILARITY_THRESHOLD = 0.15; // Lower threshold for semantic variations and weaker embeddings
     const filteredScored = allScored.filter(s => s.maxScore >= SIMILARITY_THRESHOLD);
     console.log(`Filtered ${allScored.length} docs to ${filteredScored.length} above threshold ${SIMILARITY_THRESHOLD}`);
     // Take top 10 for reranking, then select best 3
