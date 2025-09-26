@@ -51,13 +51,20 @@ function keywordScore(query, title, content) {
         'do': ['do', 'does', 'did', 'will', 'can'],
         'to': ['to', 'for', 'in', 'order']
     };
+    // Filter out common stop words that don't add semantic value
+    const stopWords = new Set(['to', 'in', 'for', 'if', 'do', 'am', 'is', 'are', 'have', 'has', 'had', 'will', 'would', 'should', 'could', 'can', 'may', 'might', 'the', 'a', 'an', 'and', 'or', 'but', 'so', 'with', 'from', 'at', 'by', 'on', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once']);
     let score = 0;
     const matches = [];
     for (const term of q) {
-        // Direct match
+        // Skip very common words unless they're semantically important
+        if (stopWords.has(term) && !['resign', 'notice', 'give', 'want', 'need', 'much'].includes(term)) {
+            continue;
+        }
+        // Direct match with higher weight for important terms
         const directMatch = freq[term] || 0;
         if (directMatch > 0) {
-            score += directMatch * 2;
+            const weight = ['resign', 'notice', 'give', 'want', 'need', 'much', 'work', 'home', 'remote', 'allowed'].includes(term) ? 3 : 1;
+            score += directMatch * weight;
             matches.push(`${term}(${directMatch})`);
         }
         // Semantic matches
@@ -65,7 +72,8 @@ function keywordScore(query, title, content) {
         for (const synonym of synonyms) {
             const synonymMatch = freq[synonym] || 0;
             if (synonymMatch > 0) {
-                score += synonymMatch * 1.5;
+                const weight = ['resign', 'notice', 'give', 'want', 'need', 'much', 'work', 'home', 'remote', 'allowed'].includes(term) ? 2.5 : 1;
+                score += synonymMatch * weight;
                 matches.push(`${synonym}(${synonymMatch})`);
             }
         }
@@ -207,8 +215,10 @@ export const chat = asyncHandler(async (req, res) => {
     const topK = 10;
     const rerankCandidates = filteredScored.length > 0 ? filteredScored : allScored;
     const topCandidates = rerankCandidates.slice(0, topK);
+    // If we have very few candidates, include more from the original list
+    const finalCandidates = topCandidates.length < 3 ? allScored.slice(0, Math.max(3, topCandidates.length)) : topCandidates;
     // Rerank using combined scoring: similarity + keyword match + recency
-    const reranked = topCandidates.map(({ doc, maxScore }) => {
+    const reranked = finalCandidates.map(({ doc, maxScore }) => {
         const keywordBoost = keywordScore(message, doc.title || '', doc.content || '');
         const recencyBoost = Math.max(0, 1 - (Date.now() - new Date(doc.updatedAt).getTime()) / (30 * 24 * 60 * 60 * 1000)); // 30 days
         // Normalize keyword score to 0-1 range (assuming max possible is around 50)
@@ -228,8 +238,8 @@ export const chat = asyncHandler(async (req, res) => {
         normalizedKeyword: r.normalizedKeyword.toFixed(3),
         recency: r.recencyBoost.toFixed(3)
     })));
-    // Final selection: top 3 after reranking
-    const scored = reranked.slice(0, 3);
+    // Final selection: top 3 after reranking, but ensure we have at least some results
+    const scored = reranked.length > 0 ? reranked.slice(0, 3) : allScored.slice(0, 3);
     // Build a RAG prompt
     const contextBlocks = scored.map(({ doc }) => {
         const snippets = extractSnippets(message, doc.title || '', doc.content || '', 3);
