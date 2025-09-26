@@ -77,7 +77,6 @@ export const login = asyncHandler(async (req: any, res: any) => {
 // GET /api/users/me
 export const getMe = asyncHandler(async (req: any, res: any) => {
   const userId = (req as any).user?.id;
-  console.log("User ID from JWT:", userId);
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
