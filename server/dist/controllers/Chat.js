@@ -42,6 +42,39 @@ function extractSnippets(query, title, content, maxSnippets = 2) {
         .map(x => x.s.length > 220 ? (x.s.slice(0, 200) + '…') : x.s);
     return scored.length ? scored : [sentences[0]?.slice(0, 200) + '…'].filter(Boolean);
 }
+async function rewriteQuery(query) {
+    const apiKey = process.env.AI_API_KEY;
+    if (!apiKey)
+        return [query]; // Fallback to original query if no API key
+    try {
+        const groq = new Groq({ apiKey });
+        const response = await groq.chat.completions.create({
+            model: "openai/gpt-oss-20b",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a query rewriting assistant. Given a user's question, generate exactly 5 different ways to ask the same question using different words, phrasings, and synonyms. Each rewrite should be semantically equivalent but use different vocabulary. Return only the 5 queries, one per line, no numbering or bullets."
+                },
+                {
+                    role: "user",
+                    content: query
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 200
+        });
+        const rewrites = response.choices?.[0]?.message?.content
+            ?.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .slice(0, 5) || [];
+        return rewrites.length > 0 ? rewrites : [query];
+    }
+    catch (error) {
+        console.warn('Query rewriting failed:', error);
+        return [query]; // Fallback to original query
+    }
+}
 // POST /api/chat
 // body: { company: string, message: string }
 export const chat = asyncHandler(async (req, res) => {
@@ -65,19 +98,40 @@ export const chat = asyncHandler(async (req, res) => {
         .select('title content embedding updatedAt')
         .sort({ updatedAt: -1 })
         .limit(50);
-    let qEmb = null;
-    try {
-        qEmb = await embedText(message);
+    // Generate multiple query variations for better retrieval
+    const queryVariations = await rewriteQuery(message);
+    console.log('Query variations:', queryVariations);
+    // Search with each query variation and combine results
+    const allScores = new Map();
+    for (const query of queryVariations) {
+        let qEmb = null;
+        try {
+            qEmb = await embedText(query);
+        }
+        catch { }
+        const queryScores = docs.map((d) => {
+            let score = 0;
+            if (Array.isArray(d.embedding) && Array.isArray(qEmb)) {
+                score = cosineSimilarity(qEmb, d.embedding);
+            }
+            else {
+                score = keywordScore(query, d.title || '', d.content || '');
+            }
+            return { doc: d, score };
+        });
+        // Update max score for each document across all query variations
+        for (const { doc, score } of queryScores) {
+            const docId = String(doc._id);
+            const existing = allScores.get(docId);
+            if (!existing || score > existing.maxScore) {
+                allScores.set(docId, { doc, maxScore: score });
+            }
+        }
     }
-    catch { }
-    const scored = docs.map((d) => {
-        let score = 0;
-        if (Array.isArray(d.embedding) && Array.isArray(qEmb))
-            score = cosineSimilarity(qEmb, d.embedding);
-        else
-            score = keywordScore(message, d.title || '', d.content || '');
-        return { doc: d, score };
-    }).sort((a, b) => b.score - a.score).slice(0, 3);
+    // Convert to array and sort by max score
+    const scored = Array.from(allScores.values())
+        .sort((a, b) => b.maxScore - a.maxScore)
+        .slice(0, 3);
     // Build a RAG prompt
     const contextBlocks = scored.map(({ doc }) => {
         const snippets = extractSnippets(message, doc.title || '', doc.content || '', 3);
