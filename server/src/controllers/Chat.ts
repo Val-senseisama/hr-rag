@@ -40,7 +40,7 @@ function extractSnippets(query: string, title: string, content: string, maxSnipp
 
 async function rewriteQuery(query: string): Promise<string[]> {
   const apiKey = process.env.AI_API_KEY;
-  if (!apiKey) return [query]; // Fallback to original query if no API key
+  if (!apiKey) return [query, query, query, query, query]; // Fallback to original query repeated 5 times
 
   try {
     const groq = new Groq({ apiKey });
@@ -49,27 +49,41 @@ async function rewriteQuery(query: string): Promise<string[]> {
       messages: [
         {
           role: "system",
-          content: "You are a query rewriting assistant. Given a user's question, generate exactly 5 different ways to ask the same question using different words, phrasings, and synonyms. Each rewrite should be semantically equivalent but use different vocabulary. Return only the 5 queries, one per line, no numbering or bullets."
+          content: "You are a query rewriting assistant. Given a user's question, generate exactly 5 different ways to ask the same question using different words, phrasings, and synonyms. Each rewrite should be semantically equivalent but use different vocabulary. IMPORTANT: You must return exactly 5 queries, one per line, no numbering, no bullets, no extra text. Each line should be a complete question."
         },
         {
           role: "user",
-          content: query
+          content: `Original question: "${query}"\n\nGenerate 5 different ways to ask this same question:`
         }
       ],
-      temperature: 0.7,
-      max_tokens: 200
+      temperature: 0.8,
+      max_tokens: 300
     });
 
-    const rewrites = response.choices?.[0]?.message?.content
-      ?.split('\n')
+    const content = response.choices?.[0]?.message?.content || '';
+    const rewrites = content
+      .split('\n')
       .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .slice(0, 5) || [];
+      .filter(line => line.length > 0 && !line.match(/^\d+[\.\)]/) && !line.startsWith('-') && !line.startsWith('•'))
+      .slice(0, 5);
 
-    return rewrites.length > 0 ? rewrites : [query];
+    // Ensure we have exactly 5 variations
+    if (rewrites.length >= 5) {
+      return rewrites.slice(0, 5);
+    } else if (rewrites.length > 0) {
+      // Pad with variations of the original query if we got fewer than 5
+      const padded = [...rewrites];
+      while (padded.length < 5) {
+        padded.push(query);
+      }
+      return padded.slice(0, 5);
+    } else {
+      // Complete fallback
+      return [query, query, query, query, query];
+    }
   } catch (error) {
     console.warn('Query rewriting failed:', error);
-    return [query]; // Fallback to original query
+    return [query, query, query, query, query]; // Fallback to original query repeated 5 times
   }
 }
 
