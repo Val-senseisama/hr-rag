@@ -14,10 +14,10 @@ if (!fs.existsSync(cachePath)) {
 process.env.TRANSFORMERS_CACHE = cachePath;
 
 async function main() {
-  console.log("Downloading Xenova/all-MiniLM-L6-v2 ...");
+  console.log("Downloading Xenova/all-MiniLM-L12-v2 ...");
 
   // this will fetch model weights and cache them into ./models
-  const embedder = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+  const embedder = await pipeline("feature-extraction", "Xenova/all-MiniLM-L12-v2");
 
   // quick test
   const sentences = [
