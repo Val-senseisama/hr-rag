@@ -260,6 +260,14 @@ export const chat = asyncHandler(async (req: any, res: any) => {
     const keywordBoost = keywordScore(message, doc.title || '', doc.content || '');
     const recencyBoost = Math.max(0, 1 - (Date.now() - new Date(doc.updatedAt).getTime()) / (30 * 24 * 60 * 60 * 1000)); // 30 days
     
+    // Handle exact phrase matches (score >= 100) with special logic
+    if (keywordBoost >= 100) {
+      // For exact phrase matches, give them the highest possible score
+      const combinedScore = 1.0 + (maxScore * 0.1); // Base 1.0 + small similarity boost
+      console.log(`🎯 EXACT PHRASE in reranking: "${doc.title}" → combined score: ${combinedScore.toFixed(3)}`);
+      return { doc, score: combinedScore, originalScore: maxScore, keywordBoost, recencyBoost, normalizedKeyword: 1.0 };
+    }
+    
     // Normalize keyword score to 0-1 range (assuming max possible is around 50)
     const normalizedKeyword = Math.min(keywordBoost / 50, 1);
     
