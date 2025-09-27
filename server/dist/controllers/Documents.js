@@ -61,27 +61,62 @@ export const createDocument = asyncHandler(async (req, res) => {
             (typeof extractedContent === "string" && extractedContent.trim().length > 0) ? extractedContent.trim() :
                 String(title || "");
         if (textToEmbed) {
-            // Chunk long text and average embeddings so vectors remain representative
-            const makeChunks = (text, maxLen = 2000) => {
-                const parts = [];
-                let buf = '';
-                const paras = text.split(/\n{2,}/);
-                for (const p of paras) {
-                    if ((buf + '\n\n' + p).length > maxLen && buf.length > 0) {
-                        parts.push(buf);
-                        buf = p;
+            // Improved chunking with overlap and sentence-aware splitting
+            const makeChunks = (text, maxLen = 2000, overlap = 200) => {
+                const chunks = [];
+                const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+                let currentChunk = '';
+                let chunkStart = 0;
+                for (let i = 0; i < sentences.length; i++) {
+                    const sentence = sentences[i].trim();
+                    const testChunk = currentChunk ? `${currentChunk} ${sentence}` : sentence;
+                    if (testChunk.length <= maxLen) {
+                        currentChunk = testChunk;
                     }
                     else {
-                        buf = buf ? (buf + '\n\n' + p) : p;
-                    }
-                    while (buf.length > maxLen) {
-                        parts.push(buf.slice(0, maxLen));
-                        buf = buf.slice(maxLen);
+                        // Current chunk is full, save it
+                        if (currentChunk) {
+                            chunks.push(currentChunk);
+                            // Start new chunk with overlap
+                            if (overlap > 0 && chunks.length > 0) {
+                                const prevChunk = chunks[chunks.length - 1];
+                                const overlapText = prevChunk.slice(-overlap);
+                                currentChunk = `${overlapText} ${sentence}`.trim();
+                            }
+                            else {
+                                currentChunk = sentence;
+                            }
+                        }
+                        else {
+                            // Single sentence too long, force split
+                            if (sentence.length > maxLen) {
+                                // Split long sentence by words
+                                const words = sentence.split(' ');
+                                let wordChunk = '';
+                                for (const word of words) {
+                                    if ((wordChunk + ' ' + word).length <= maxLen) {
+                                        wordChunk = wordChunk ? `${wordChunk} ${word}` : word;
+                                    }
+                                    else {
+                                        if (wordChunk)
+                                            chunks.push(wordChunk);
+                                        wordChunk = word;
+                                    }
+                                }
+                                if (wordChunk)
+                                    currentChunk = wordChunk;
+                            }
+                            else {
+                                currentChunk = sentence;
+                            }
+                        }
                     }
                 }
-                if (buf)
-                    parts.push(buf);
-                return parts.filter(Boolean);
+                // Add final chunk
+                if (currentChunk) {
+                    chunks.push(currentChunk);
+                }
+                return chunks.filter(chunk => chunk.trim().length > 0);
             };
             const chunks = makeChunks(textToEmbed);
             if (chunks.length <= 1) {
@@ -150,26 +185,61 @@ export const updateDocument = asyncHandler(async (req, res) => {
         update.title = title;
     if (typeof content === "string") {
         update.content = content;
-        const makeChunks = (text, maxLen = 2000) => {
-            const parts = [];
-            let buf = '';
-            const paras = text.split(/\n{2,}/);
-            for (const p of paras) {
-                if ((buf + '\n\n' + p).length > maxLen && buf.length > 0) {
-                    parts.push(buf);
-                    buf = p;
+        const makeChunks = (text, maxLen = 2000, overlap = 200) => {
+            const chunks = [];
+            const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+            let currentChunk = '';
+            let chunkStart = 0;
+            for (let i = 0; i < sentences.length; i++) {
+                const sentence = sentences[i].trim();
+                const testChunk = currentChunk ? `${currentChunk} ${sentence}` : sentence;
+                if (testChunk.length <= maxLen) {
+                    currentChunk = testChunk;
                 }
                 else {
-                    buf = buf ? (buf + '\n\n' + p) : p;
-                }
-                while (buf.length > maxLen) {
-                    parts.push(buf.slice(0, maxLen));
-                    buf = buf.slice(maxLen);
+                    // Current chunk is full, save it
+                    if (currentChunk) {
+                        chunks.push(currentChunk);
+                        // Start new chunk with overlap
+                        if (overlap > 0 && chunks.length > 0) {
+                            const prevChunk = chunks[chunks.length - 1];
+                            const overlapText = prevChunk.slice(-overlap);
+                            currentChunk = `${overlapText} ${sentence}`.trim();
+                        }
+                        else {
+                            currentChunk = sentence;
+                        }
+                    }
+                    else {
+                        // Single sentence too long, force split
+                        if (sentence.length > maxLen) {
+                            // Split long sentence by words
+                            const words = sentence.split(' ');
+                            let wordChunk = '';
+                            for (const word of words) {
+                                if ((wordChunk + ' ' + word).length <= maxLen) {
+                                    wordChunk = wordChunk ? `${wordChunk} ${word}` : word;
+                                }
+                                else {
+                                    if (wordChunk)
+                                        chunks.push(wordChunk);
+                                    wordChunk = word;
+                                }
+                            }
+                            if (wordChunk)
+                                currentChunk = wordChunk;
+                        }
+                        else {
+                            currentChunk = sentence;
+                        }
+                    }
                 }
             }
-            if (buf)
-                parts.push(buf);
-            return parts.filter(Boolean);
+            // Add final chunk
+            if (currentChunk) {
+                chunks.push(currentChunk);
+            }
+            return chunks.filter(chunk => chunk.trim().length > 0);
         };
         const chunks = makeChunks(content.trim());
         if (chunks.length <= 1) {
