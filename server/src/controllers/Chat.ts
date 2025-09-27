@@ -49,6 +49,25 @@ function keywordScore(query: string, title: string, content: string): number {
     'to': ['to', 'for', 'in', 'order']
   };
   
+  // Check for exact phrase matches first (highest priority)
+  const exactPhraseMatch = content.toLowerCase().includes(query.toLowerCase());
+  if (exactPhraseMatch) {
+    console.log(`🎯 EXACT PHRASE MATCH FOUND for: "${query}"`);
+    console.log(`📄 Document: "${title}"`);
+    return 100; // Very high score for exact matches
+  }
+  
+  // Check for partial phrase matches (substring of 5+ words)
+  const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  if (queryWords.length >= 5) {
+    const partialPhrase = queryWords.slice(0, 5).join(' ');
+    const partialMatch = content.toLowerCase().includes(partialPhrase);
+    if (partialMatch) {
+      console.log(`Partial phrase match found: "${partialPhrase}"`);
+      return 50; // High score for partial matches
+    }
+  }
+  
   // Filter out common stop words that don't add semantic value
   const stopWords = new Set(['to', 'in', 'for', 'if', 'do', 'am', 'is', 'are', 'have', 'has', 'had', 'will', 'would', 'should', 'could', 'can', 'may', 'might', 'the', 'a', 'an', 'and', 'or', 'but', 'so', 'with', 'from', 'at', 'by', 'on', 'up', 'down', 'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once']);
   
@@ -57,14 +76,14 @@ function keywordScore(query: string, title: string, content: string): number {
   
   for (const term of q) {
     // Skip very common words unless they're semantically important
-    if (stopWords.has(term) && !['resign', 'notice', 'give', 'want', 'need', 'much'].includes(term)) {
+    if (stopWords.has(term) && !['resign', 'notice', 'give', 'want', 'need', 'much', 'month', 'written', 'least', 'employees', 'resigning'].includes(term)) {
       continue;
     }
     
     // Direct match with higher weight for important terms
     const directMatch = freq[term] || 0;
     if (directMatch > 0) {
-      const weight = ['resign', 'notice', 'give', 'want', 'need', 'much', 'work', 'home', 'remote', 'allowed'].includes(term) ? 3 : 1;
+      const weight = ['resign', 'notice', 'give', 'want', 'need', 'much', 'work', 'home', 'remote', 'allowed', 'month', 'written', 'least', 'employees', 'resigning'].includes(term) ? 3 : 1;
       score += directMatch * weight;
       matches.push(`${term}(${directMatch})`);
     }
@@ -74,7 +93,7 @@ function keywordScore(query: string, title: string, content: string): number {
     for (const synonym of synonyms) {
       const synonymMatch = freq[synonym] || 0;
       if (synonymMatch > 0) {
-        const weight = ['resign', 'notice', 'give', 'want', 'need', 'much', 'work', 'home', 'remote', 'allowed'].includes(term) ? 2.5 : 1;
+        const weight = ['resign', 'notice', 'give', 'want', 'need', 'much', 'work', 'home', 'remote', 'allowed', 'month', 'written', 'least', 'employees', 'resigning'].includes(term) ? 2.5 : 1;
         score += synonymMatch * weight;
         matches.push(`${synonym}(${synonymMatch})`);
       }
@@ -214,14 +233,19 @@ export const chat = asyncHandler(async (req: any, res: any) => {
   console.log('Top similarity scores:', allScored.slice(0, 10).map(s => ({ 
     title: s.doc.title, 
     score: s.maxScore.toFixed(3),
-    hasEmbedding: !!s.doc.embedding?.length
+    hasEmbedding: !!s.doc.embedding?.length,
+    isHighScore: s.maxScore >= 10
   })));
 
   // Apply similarity threshold (adjust based on your embedding model performance)
   const SIMILARITY_THRESHOLD = 0.15; // Lower threshold for semantic variations and weaker embeddings
-  const filteredScored = allScored.filter(s => s.maxScore >= SIMILARITY_THRESHOLD);
+  // For keyword scores (which can be much higher), use a different threshold
+  const KEYWORD_THRESHOLD = 10; // Much lower threshold for keyword scores
+  const filteredScored = allScored.filter(s => 
+    s.maxScore >= SIMILARITY_THRESHOLD || s.maxScore >= KEYWORD_THRESHOLD
+  );
   
-  console.log(`Filtered ${allScored.length} docs to ${filteredScored.length} above threshold ${SIMILARITY_THRESHOLD}`);
+  console.log(`Filtered ${allScored.length} docs to ${filteredScored.length} above threshold (similarity: ${SIMILARITY_THRESHOLD}, keyword: ${KEYWORD_THRESHOLD})`);
 
   // Take top 10 for reranking, then select best 3
   const topK = 10;
