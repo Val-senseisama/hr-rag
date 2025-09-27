@@ -102,9 +102,21 @@ function keywordScore(query, title, content) {
     return score;
 }
 function extractSnippets(query, title, content, maxSnippets = 2) {
-    const terms = Array.from(new Set(tokenize(query)));
     if (!content)
         return [title].filter(Boolean).slice(0, 1);
+    // First, check for exact phrase matches
+    const exactPhraseMatch = content.toLowerCase().includes(query.toLowerCase());
+    if (exactPhraseMatch) {
+        console.log(`🎯 Found exact phrase in content for: "${query}"`);
+        // Find the sentence containing the exact phrase
+        const sentences = content.split(/(?<=[.!?])\s+/);
+        const exactSentence = sentences.find(s => s.toLowerCase().includes(query.toLowerCase()));
+        if (exactSentence) {
+            return [exactSentence.trim()];
+        }
+    }
+    // Fallback to keyword-based snippet extraction
+    const terms = Array.from(new Set(tokenize(query)));
     const sentences = content.split(/(?<=[.!?])\s+/).slice(0, 40);
     const scored = sentences.map((s) => ({ s, score: keywordScore(terms.join(' '), '', s) }))
         .filter(x => x.score > 0)
@@ -273,8 +285,12 @@ export const chat = asyncHandler(async (req, res) => {
     // Build a RAG prompt
     const contextBlocks = scored.map(({ doc }) => {
         const snippets = extractSnippets(message, doc.title || '', doc.content || '', 3);
+        console.log(`📄 Document: "${doc.title}"`);
+        console.log(`📝 Extracted snippets:`, snippets);
         return `Title: ${doc.title}\nSnippets:\n- ${snippets.join('\n- ')}`;
     }).join('\n\n');
+    console.log('🔍 Final RAG context:');
+    console.log(contextBlocks);
     const system = `You are a helpful HR assistant for ValTech. Answer the user clearly using ONLY the provided context. If the answer isn't in context, say you couldn't find it. Format with short paragraphs and bullet lists where appropriate.`;
     const userMsg = `Question: ${message}\n\nContext:\n${contextBlocks}`;
     const apiKey = process.env.AI_API_KEY;
