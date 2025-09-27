@@ -198,10 +198,14 @@ export const chat = asyncHandler(async (req: any, res: any) => {
   const queryVariations = await rewriteQuery(message);
   console.log('Query variations:', queryVariations);
 
+  // Include the original query in the search (it's often the most precise)
+  const allQueries = [message, ...queryVariations];
+  console.log('All queries (original + variations):', allQueries);
+
   // Search with each query variation and combine results
   const allScores = new Map<string, { doc: any, maxScore: number }>();
 
-  for (const query of queryVariations) {
+  for (const query of allQueries) {
     let qEmb: number[] | null = null;
     try { qEmb = await embedText(query); } catch {}
 

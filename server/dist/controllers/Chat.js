@@ -188,9 +188,12 @@ export const chat = asyncHandler(async (req, res) => {
     // Generate multiple query variations for better retrieval
     const queryVariations = await rewriteQuery(message);
     console.log('Query variations:', queryVariations);
+    // Include the original query in the search (it's often the most precise)
+    const allQueries = [message, ...queryVariations];
+    console.log('All queries (original + variations):', allQueries);
     // Search with each query variation and combine results
     const allScores = new Map();
-    for (const query of queryVariations) {
+    for (const query of allQueries) {
         let qEmb = null;
         try {
             qEmb = await embedText(query);
