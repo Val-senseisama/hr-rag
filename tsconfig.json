@@ -18,10 +18,79 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      // Root aliases
+      "@/*": ["./*"],
+      "@/app/*": ["./app/*"],
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/models/*": ["./models/*"],
+      "@/types/*": ["./types/*"],
+      "@/hooks/*": ["./hooks/*"],
+      "@/public/*": ["./public/*"],
+      
+      // Specific component aliases
+      "@/components/ui/*": ["./components/ui/*"],
+      "@/components/auth/*": ["./components/auth/*"],
+      "@/components/chat/*": ["./components/chat/*"],
+      "@/components/company/*": ["./components/company/*"],
+      "@/components/document/*": ["./components/document/*"],
+      
+      // API route aliases
+      "@/app/api/*": ["./app/api/*"],
+      "@/app/api/auth/*": ["./app/api/auth/*"],
+      "@/app/api/chat/*": ["./app/api/chat/*"],
+      "@/app/api/companies/*": ["./app/api/companies/*"],
+      "@/app/api/documents/*": ["./app/api/documents/*"],
+      "@/app/api/users/*": ["./app/api/users/*"],
+      
+      // Page aliases
+      "@/app/(auth)/*": ["./app/(auth)/*"],
+      "@/app/(dashboard)/*": ["./app/(dashboard)/*"],
+      
+      // Utility aliases
+      "@/lib/auth": ["./lib/auth"],
+      "@/lib/db": ["./lib/db"],
+      "@/lib/email": ["./lib/email"],
+      "@/lib/embeddings": ["./lib/embeddings"],
+      "@/lib/rag": ["./lib/rag"],
+      "@/lib/validations": ["./lib/validations"],
+      "@/lib/CONFIG": ["./lib/CONFIG"],
+      
+      // Model aliases
+      "@/models/User": ["./models/User"],
+      "@/models/Company": ["./models/Company"],
+      "@/models/Document": ["./models/Document"],
+      
+      // Type aliases
+      "@/types/auth": ["./types/auth"],
+      "@/types/api": ["./types/api"],
+      "@/types/company": ["./types/company"],
+      "@/types/document": ["./types/document"],
+      "@/types/user": ["./types/user"],
+      
+      // Hook aliases
+      "@/hooks/useAuth": ["./hooks/useAuth"],
+      "@/hooks/useCompany": ["./hooks/useCompany"],
+      "@/hooks/useDocument": ["./hooks/useDocument"],
+      "@/hooks/useChat": ["./hooks/useChat"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts", 
+    "**/*.ts", 
+    "**/*.tsx", 
+    ".next/types/**/*.ts",
+    "types/**/*.ts",
+    "models/**/*.ts",
+    "lib/**/*.ts",
+    "hooks/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist",
+    "build"
+  ]
 }

@@ -1,24 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ValTech HRBot
+
+AI-powered HR assistant for document management and company collaboration.
 
 ## Getting Started
 
-First, run the development server:
+First, install dependencies:
+
+```bash
+npm install
+```
+
+Set up your environment variables by creating a `.env.local` file:
+
+```bash
+# Database
+MONGODB_URI=mongodb://localhost:27017/next-app
+
+# JWT
+JWT_SECRET=your-jwt-secret-key-here
+
+# Email Configuration (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+FROM_EMAIL=your-email@gmail.com
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+```
+
+Then run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Email Configuration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app supports email invitations and notifications. To enable email functionality:
+
+1. **Gmail Setup:**
+   - Enable 2-factor authentication on your Gmail account
+   - Generate an App Password for this application
+   - Use the App Password as `SMTP_PASS`
+
+2. **Other SMTP Providers:**
+   - Update `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASS` accordingly
+
+3. **Development Mode:**
+   - If SMTP is not configured, the app will log warnings but continue to function
+   - Email sending will be skipped gracefully
 
 ## Learn More
 
