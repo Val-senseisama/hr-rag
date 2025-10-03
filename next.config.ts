@@ -44,31 +44,8 @@ const nextConfig: NextConfig = {
 
   // Headers for security and CORS
   async headers() {
-    return [
-      {
-        source: '/api/:path*',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: process.env.NODE_ENV === 'production' 
-              ? 'https://your-domain.com' 
-              : 'http://localhost:3000',
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, PUT, DELETE, OPTIONS',
-          },
-          {
-            key: 'Access-Control-Allow-Headers',
-            value: 'Content-Type, Authorization, x-access-token, x-refresh-token, x-force-refresh',
-          },
-          {
-            key: 'Access-Control-Allow-Credentials',
-            value: 'true',
-          },
-        ],
-      },
-    ];
+    // Disabled for diagnosis of headers-sent error
+    return [];
   },
 
   // Redirects for better UX
@@ -89,12 +66,8 @@ const nextConfig: NextConfig = {
 
   // Rewrites for API routes
   async rewrites() {
-    return [
-      {
-        source: '/api/health',
-        destination: '/api/health/check',
-      },
-    ];
+    // Disabled for diagnosis of headers-sent error
+    return [];
   },
 
   // Output configuration

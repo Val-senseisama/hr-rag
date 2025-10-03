@@ -45,20 +45,31 @@ export default function DashboardLayout({
   const avatar = useMemo(() => {
     if (!user?.name) return { initial: '?', bg: '#6b7280', fg: '#ffffff', label: 'Profile' };
     
-    const fullName = user.name.trim();
-    const firstName = fullName.split(' ')[0] || '';
-    const initial = firstName.charAt(0).toUpperCase() || '?';
-    const basis = (user.id || fullName || 'user') as string;
-    let hash = 0;
-    for (let i = 0; i < basis.length; i++) {
-      hash = (hash * 31 + basis.charCodeAt(i)) >>> 0;
+    try {
+      const fullName = (user.name || '').trim();
+      const firstName = fullName.split(' ')[0] || '';
+      const initial = firstName.charAt(0).toUpperCase() || '?';
+      const basis = (user.id || fullName || 'user') as string;
+      let hash = 0;
+      
+      // Safety check for basis string
+      if (basis && typeof basis === 'string' && basis.length > 0) {
+        console.log('basis', basis);
+        for (let i = 0; i < basis.length; i++) {
+          hash = (hash * 31 + basis.charCodeAt(i)) >>> 0;
+        }
+      }
+      const hue = hash % 360;
+      const bg = `hsl(${hue}, 70%, 35%)`;
+      const fg = `hsl(${hue}, 85%, 90%)`;
+      return { initial, bg, fg, label: fullName || 'Profile' };
+    } catch (error) {
+      console.error('Error generating avatar:', error);
+      return { initial: '?', bg: '#6b7280', fg: '#ffffff', label: 'Profile' };
     }
-    const hue = hash % 360;
-    const bg = `hsl(${hue}, 70%, 35%)`;
-    const fg = `hsl(${hue}, 85%, 90%)`;
-    return { initial, bg, fg, label: fullName || 'Profile' };
   }, [user]);
 
+ // const avatar = { initial: '?', bg: '#6b7280', fg: '#ffffff', label: 'Profile' };
   const logout = () => {
     // Clear tokens and redirect
     document.cookie = "x-access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";

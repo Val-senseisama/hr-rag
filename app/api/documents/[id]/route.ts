@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Document from "@/models/Document";
 import { requireAuth, canUpdate, canDelete } from "@/lib/auth";
+export const runtime = 'nodejs';
 import connectDB from "@/lib/db";
 import { chunkText, embedText, averageVectors } from "@/lib/embeddings";
 

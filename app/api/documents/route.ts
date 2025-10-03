@@ -4,6 +4,7 @@ import { requireAuth, canCreate } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import mongoose from "mongoose";
 import { chunkText, embedText, averageVectors } from "@/lib/embeddings";
+export const runtime = 'nodejs';
 
 
 export async function POST(req: NextRequest) {

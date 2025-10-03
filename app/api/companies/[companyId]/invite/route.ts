@@ -3,6 +3,7 @@ import Company from "@/models/Company";
 import User from "@/models/User";
 import { requireAuth, canDelete } from "@/lib/auth";
 import connectDB from "@/lib/db";
+export const runtime = 'nodejs';
 import { sendMail } from "@/lib/email";
 import mongoose from "mongoose";
 

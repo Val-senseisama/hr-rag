@@ -20,13 +20,13 @@ export type JwtUserPayload = {
 export function signAccessToken(payload: JwtUserPayload): string {
   if (!CONFIG.JWT_SECRET) throw new Error("JWT_SECRET not set");
   const expiresIn = CONFIG.JWT_EXPIRES_IN || "15m";
-  return jwt.sign(payload, CONFIG.JWT_SECRET, { expiresIn : Number(expiresIn) });
+  return jwt.sign(payload, CONFIG.JWT_SECRET, { expiresIn });
 }
 
 export function signRefreshToken(payload: JwtUserPayload): string {
   if (!CONFIG.JWT_SECRET) throw new Error("JWT_SECRET not set");
   const expiresIn = CONFIG.JWT_REFRESH_EXPIRES_IN || "7d";
-  return jwt.sign(payload, CONFIG.JWT_SECRET, { expiresIn : Number(expiresIn) });
+  return jwt.sign(payload, CONFIG.JWT_SECRET, { expiresIn });
 }
 
 export function verifyToken<T = any>(token?: string | null): T | null {
@@ -64,28 +64,51 @@ export function setTokensOnResponse(
   tokens: { accessToken?: string | null; refreshToken?: string | null },
   options?: { clearForceHeader?: boolean }
 ): NextResponse {
+  console.log('🔑 Setting auth tokens on response:', {
+    hasAccessToken: !!tokens.accessToken,
+    hasRefreshToken: !!tokens.refreshToken,
+    clearForceHeader: options?.clearForceHeader,
+    responseHeadersSent: res.headersSent || false
+  });
+  
+  // Check if response has already been sent
+  if (res.headersSent) {
+    console.warn('⚠️ Response headers already sent, skipping token setting');
+    return res;
+  }
+  
   const { accessToken, refreshToken } = tokens;
-  if (accessToken) {
-    res.headers.set("x-access-token", accessToken);
-    res.cookies.set("x-access-token", accessToken, {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-    });
-  }
-  if (refreshToken) {
-    res.headers.set("x-refresh-token", refreshToken);
-    res.cookies.set("x-refresh-token", refreshToken, {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-    });
-  }
+  
+  try {
+    if (accessToken) {
+      console.log('📝 Setting access token header and cookie');
+      res.headers.set("x-access-token", accessToken);
+      res.cookies.set("x-access-token", accessToken, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      });
+    }
+    if (refreshToken) {
+      console.log('📝 Setting refresh token header and cookie');
+      res.headers.set("x-refresh-token", refreshToken);
+      res.cookies.set("x-refresh-token", refreshToken, {
+        httpOnly: false,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+      });
+    }
 
-  if (options?.clearForceHeader) {
-    res.headers.set("x-force-refresh", "");
+    if (options?.clearForceHeader) {
+      console.log('📝 Clearing force refresh header');
+      res.headers.set("x-force-refresh", "");
+    }
+    
+    console.log('✅ Auth tokens set successfully');
+  } catch (error) {
+    console.error('❌ Could not set auth headers:', error);
   }
 
   return res;

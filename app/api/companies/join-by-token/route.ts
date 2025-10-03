@@ -3,6 +3,7 @@ import Company from "@/models/Company";
 import User from "@/models/User";
 import { requireAuth } from "@/lib/auth";
 import connectDB from "@/lib/db";
+export const runtime = 'nodejs';
 import mongoose from "mongoose";
 
 export async function POST(req: NextRequest) {

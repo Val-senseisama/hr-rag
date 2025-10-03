@@ -4,6 +4,7 @@ import { requireAuth, canRead } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import mongoose from "mongoose";
 import { embedText, cosineSimilarity } from "@/lib/embeddings";
+export const runtime = 'nodejs';
 
 
 function tokenize(text: string): string[] {

@@ -5,6 +5,11 @@
 const VECTOR_DIMENSION = 384;
 
 function hashStringToInt32(input: string, seed = 0): number {
+  if (!input || typeof input !== 'string') {
+    console.warn('hashStringToInt32: invalid input, using empty string');
+    input = '';
+  }
+  
   let h1 = 0xdeadbeef ^ seed;
   let h2 = 0x41c6ce57 ^ seed;
   for (let i = 0; i < input.length; i++) {
@@ -18,27 +23,33 @@ function hashStringToInt32(input: string, seed = 0): number {
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  const normalized = (text || "").toLowerCase().replace(/\s+/g, " ").trim();
-  if (!normalized) return new Array(VECTOR_DIMENSION).fill(0);
+  try {
+    const normalized = (text || "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (!normalized) return new Array(VECTOR_DIMENSION).fill(0);
 
-  const vec = new Array<number>(VECTOR_DIMENSION).fill(0);
-  // Use 3-gram hashing over words and characters
-  const tokens = normalized.split(/[^a-z0-9]+/g).filter(Boolean);
-  for (const tok of tokens) {
-    for (let i = 0; i < tok.length; i++) {
-      const tri = tok.slice(i, i + 3);
-      if (tri.length < 1) continue;
-      const h = hashStringToInt32(tri, i);
-      const idx = h % VECTOR_DIMENSION;
-      vec[idx] += 1;
+    const vec = new Array<number>(VECTOR_DIMENSION).fill(0);
+    // Use 3-gram hashing over words and characters
+    const tokens = normalized.split(/[^a-z0-9]+/g).filter(Boolean);
+    for (const tok of tokens) {
+      if (!tok || typeof tok !== 'string') continue;
+      for (let i = 0; i < tok.length; i++) {
+        const tri = tok.slice(i, i + 3);
+        if (tri.length < 1) continue;
+        const h = hashStringToInt32(tri, i);
+        const idx = h % VECTOR_DIMENSION;
+        vec[idx] += 1;
+      }
     }
+    // Normalize to unit length
+    let norm = 0;
+    for (const v of vec) norm += v * v;
+    norm = Math.sqrt(norm) || 1;
+    for (let i = 0; i < vec.length; i++) vec[i] = vec[i] / norm;
+    return vec;
+  } catch (error) {
+    console.error('Error in embedText:', error);
+    return new Array(VECTOR_DIMENSION).fill(0);
   }
-  // Normalize to unit length
-  let norm = 0;
-  for (const v of vec) norm += v * v;
-  norm = Math.sqrt(norm) || 1;
-  for (let i = 0; i < vec.length; i++) vec[i] = vec[i] / norm;
-  return vec;
 }
 
 export function cosineSimilarity(a: number[], b: number[]): number {
@@ -50,8 +61,9 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 export function chunkText(text: string, maxLen = 2000, overlap = 200): string[] {
-  const chunks: string[] = [];
-  const sentences = (text || "").split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+  try {
+    const chunks: string[] = [];
+    const sentences = (text || "").split(/(?<=[.!?])\s+/).filter(s => s && s.trim().length > 0);
 
   let currentChunk = '';
   for (let i = 0; i < sentences.length; i++) {
@@ -89,7 +101,11 @@ export function chunkText(text: string, maxLen = 2000, overlap = 200): string[] 
     }
   }
   if (currentChunk) chunks.push(currentChunk);
-  return chunks.filter(chunk => chunk.trim().length > 0);
+  return chunks.filter(chunk => chunk && chunk.trim().length > 0);
+  } catch (error) {
+    console.error('Error in chunkText:', error);
+    return [];
+  }
 }
 
 export function averageVectors(vectors: number[][]): number[] {

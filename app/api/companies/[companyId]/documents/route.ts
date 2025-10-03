@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Document from "@/models/Document";
 import { requireAuth, canRead } from "@/lib/auth";
 import connectDB from "@/lib/db";
+export const runtime = 'nodejs';
 
 export async function GET(
   req: NextRequest,

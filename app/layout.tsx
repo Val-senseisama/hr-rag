@@ -27,7 +27,7 @@ export default function RootLayout({
           referrerPolicy="no-referrer"
         />
       </head>
-      <body className={`${inter.className} bg-neutral-950 text-zinc-300`}>
+      <body className={`${inter.className} bg-neutral-950 text-zinc-300`} suppressHydrationWarning>
         {children}
         <ToastContainer
           position="top-right"

@@ -20,28 +20,39 @@ const Session = {
   },
 
   getCookie: (cname: string) => {
-    let name = cname + '=';
-    let decodedCookie = decodeURIComponent(document.cookie);
-    let ca = decodedCookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-      let c = ca[i];
-      while (c.charAt(0) === ' ') {
-        c = c.substring(1);
+    try {
+      let name = cname + '=';
+      let decodedCookie = decodeURIComponent(document.cookie || '');
+      let ca = decodedCookie.split(';');
+      for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        if (!c || typeof c !== 'string') continue;
+        while (c.charAt(0) === ' ') {
+          c = c.substring(1);
+        }
+        if (c.indexOf(name) === 0) {
+          return c.substring(name.length, c.length);
+        }
       }
-      if (c.indexOf(name) === 0) {
-        return c.substring(name.length, c.length);
-      }
+      return '';
+    } catch (error) {
+      console.warn('Error in getCookie:', error);
+      return '';
     }
-    return '';
   },
 
   clearAllCookies: () => {
-    const cookies = document.cookie.split(";");
+    try {
+      const cookies = (document.cookie || '').split(";");
 
-    for (let cookie of cookies) {
-      const eqPos = cookie.indexOf("=");
-      const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      for (let cookie of cookies) {
+        if (!cookie || typeof cookie !== 'string') continue;
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      }
+    } catch (error) {
+      console.warn('Error in clearAllCookies:', error);
     }
   },
 

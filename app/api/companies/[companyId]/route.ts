@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Company from "@/models/Company";
 import User from "@/models/User";
 import { requireAuth, canUpdate, canDelete } from "@/lib/auth";
+export const runtime = 'nodejs';
 import connectDB from "@/lib/db";
 
 export async function PATCH(

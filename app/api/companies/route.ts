@@ -4,6 +4,7 @@ import User from "@/models/User";
 import { requireAuth, isOwner, setTokensOnResponse } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import mongoose from "mongoose";
+export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
@@ -79,7 +80,21 @@ export async function POST(req: NextRequest) {
     }, { status: 201 });
 
     // Set force refresh header
-    response.headers.set("x-force-refresh", forceRefreshToken);
+    try {
+      console.log('🔄 Setting force refresh header:', {
+        forceRefreshToken,
+        headersSent: response.headersSent || false
+      });
+      
+      if (response.headersSent) {
+        console.warn('⚠️ Response headers already sent, skipping force refresh header');
+      } else {
+        response.headers.set("x-force-refresh", forceRefreshToken);
+        console.log('✅ Force refresh header set successfully');
+      }
+    } catch (error) {
+      console.error('❌ Could not set force refresh header:', error);
+    }
     
     return response;
   } catch (error) {

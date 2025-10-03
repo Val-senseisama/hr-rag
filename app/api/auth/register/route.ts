@@ -3,10 +3,13 @@ import bcrypt from "bcrypt";
 import User from "@/models/User";
 import { issueNewTokens, JwtRole, setTokensOnResponse } from "@/lib/auth";
 import connectDB from "@/lib/db";
+export const runtime = 'nodejs';
 
 
 export async function POST(req: NextRequest) {
   try {
+    const reqId = req.headers.get('x-request-id') || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+    console.log(`[auth/register][${reqId}] start`);
     await connectDB();
     
     const { name, email, password } = await req.json();
@@ -55,8 +58,10 @@ export async function POST(req: NextRequest) {
         refresh: refreshToken 
       },
     }, { status: 201 });
-
-    return setTokensOnResponse(response, { accessToken, refreshToken });
+    console.log(`[auth/register][${reqId}] about to set tokens and return 201`);
+    const final = setTokensOnResponse(response, { accessToken, refreshToken });
+    console.log(`[auth/register][${reqId}] returning response`);
+    return final;
   } catch (error) {
     console.error("Registration error:", error);
     return NextResponse.json(
